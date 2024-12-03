@@ -9,6 +9,10 @@
 #include <QDate>
 #include "daywindow.h"
 #include <QPointer> // Для безопасного указателя
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDebug>
 
 class CalendarWindow : public QWidget {
     Q_OBJECT
@@ -28,6 +32,7 @@ private:
     QPushButton *updateButton;
     QDate currentDate;
     QPointer<DayWindow> currentDayWindow; // Указатель на текущее окно дня
+    QSqlDatabase db;
 
     void createCalendar();
     void clearCalendar();

@@ -1,6 +1,23 @@
 #include "calendarwindow.h"
 
 CalendarWindow::CalendarWindow(QWidget *parent) : QWidget(parent), currentDate(QDate::currentDate()) {
+    // Инициализация базы данных
+    db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName("tasks.db");
+
+    if (!db.open()) {
+        qDebug() << "Ошибка открытия базы данных:" << db.lastError().text();
+        return;
+    }
+
+    QSqlQuery query(db);
+    if (!query.exec("CREATE TABLE IF NOT EXISTS tasks ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "date TEXT NOT NULL, "
+                    "task TEXT NOT NULL)")) {
+        qDebug() << "Ошибка создания таблицы:" << query.lastError().text();
+    }
+
     setWindowTitle("Календарь");
     resize(500, 400);
 
@@ -85,7 +102,7 @@ void CalendarWindow::openDayWindow(int day) {
                        .arg(monthComboBox->currentIndex() + 1, 2, 10, QChar('0'))
                        .arg(day, 2, 10, QChar('0'));
 
-    auto *dayWindow = new DayWindow(date);
+    auto *dayWindow = new DayWindow(date, db);
     dayWindow->show();
     this->hide();
 
