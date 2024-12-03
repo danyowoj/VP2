@@ -80,19 +80,19 @@ void CalendarWindow::updateCalendar() {
 }
 
 void CalendarWindow::openDayWindow(int day) {
-    // Создаем новое окно дня
-    auto *dayWindow = new DayWindow(day);
+    QString date = QString("%1-%2-%3")
+                       .arg(yearComboBox->currentText())
+                       .arg(monthComboBox->currentIndex() + 1, 2, 10, QChar('0'))
+                       .arg(day, 2, 10, QChar('0'));
 
-    // Показываем окно дня
+    auto *dayWindow = new DayWindow(date);
     dayWindow->show();
-
-    // Скрываем текущее окно календаря
     this->hide();
 
-    // Связываем сигнал возврата из окна дня с возвратом к календарю
     connect(dayWindow, &DayWindow::backToCalendar, this, [this, dayWindow]() {
-        dayWindow->close(); // Закрываем окно дня
-        this->show();       // Возвращаем окно календаря
-        delete dayWindow;   // Удаляем объект окна дня
+        dayWindow->close();
+        this->show();
+        delete dayWindow;
     });
 }
+
