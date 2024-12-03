@@ -6,62 +6,116 @@
 DayWindow::DayWindow(const QString &date, QSqlDatabase db, QWidget *parent)
     : QWidget(parent), date(date), db(db) {
     setWindowTitle(QString("День %1").arg(date));
-    resize(400, 300);
+    resize(500, 400);
 
-    layout = new QVBoxLayout(this);
+    // Создаем виджет вкладок
+    tabWidget = new QTabWidget(this);
 
-    // Поле для ввода задачи
-    taskInput = new QLineEdit(this);
-    taskInput->setPlaceholderText("Введите задачу...");
-    layout->addWidget(taskInput);
+    // Создаем вкладку "Тренировка"
+    primaryTab = new QWidget(this);
+    primaryLayout = new QVBoxLayout(primaryTab);
 
-    // Кнопка добавления задачи
-    addTaskButton = new QPushButton("Добавить задачу", this);
-    layout->addWidget(addTaskButton);
+    primaryTaskInput = new QLineEdit(primaryTab);
+    primaryTaskInput->setPlaceholderText("Введите упражнение...");
+    primaryLayout->addWidget(primaryTaskInput);
 
-    // Список задач
-    taskList = new QListWidget(this);
-    layout->addWidget(taskList);
+    primaryAddTaskButton = new QPushButton("Добавить упражнение", primaryTab);
+    primaryLayout->addWidget(primaryAddTaskButton);
 
-    // Кнопка удаления выбранной задачи
-    removeTaskButton = new QPushButton("Удалить выбранную задачу", this);
-    layout->addWidget(removeTaskButton);
+    primaryTaskList = new QListWidget(primaryTab);
+    primaryLayout->addWidget(primaryTaskList);
 
-    // Кнопка возврата к календарю
+    primaryRemoveTaskButton = new QPushButton("Удалить выбранное упражнение", primaryTab);
+    primaryLayout->addWidget(primaryRemoveTaskButton);
+
+    tabWidget->addTab(primaryTab, "Тренировка");
+
+    // Создаем вкладку "Питание"
+    secondaryTab = new QWidget(this);
+    secondaryLayout = new QVBoxLayout(secondaryTab);
+
+    secondaryTaskInput = new QLineEdit(secondaryTab);
+    secondaryTaskInput->setPlaceholderText("Введите прием пищи...");
+    secondaryLayout->addWidget(secondaryTaskInput);
+
+    secondaryAddTaskButton = new QPushButton("Добавить прием пищи", secondaryTab);
+    secondaryLayout->addWidget(secondaryAddTaskButton);
+
+    secondaryTaskList = new QListWidget(secondaryTab);
+    secondaryLayout->addWidget(secondaryTaskList);
+
+    secondaryRemoveTaskButton = new QPushButton("Удалить выбранный прием пищи", secondaryTab);
+    secondaryLayout->addWidget(secondaryRemoveTaskButton);
+
+    tabWidget->addTab(secondaryTab, "Питание");
+
+    // Кнопка возврата
     backButton = new QPushButton("Назад", this);
-    layout->addWidget(backButton);
 
-    // Подключение сигналов
-    connect(addTaskButton, &QPushButton::clicked, this, &DayWindow::addTask);
-    connect(removeTaskButton, &QPushButton::clicked, this, &DayWindow::removeSelectedTask);
+    // Основной компоновщик
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(tabWidget);
+    mainLayout->addWidget(backButton);
+
+    setLayout(mainLayout);
+
+    // Подключение сигналов для вкладки "Тренировка"
+    connect(primaryAddTaskButton, &QPushButton::clicked, this, &DayWindow::addTaskToPrimary);
+    connect(primaryRemoveTaskButton, &QPushButton::clicked, this, &DayWindow::removeSelectedTaskFromPrimary);
+
+    // Подключение сигналов для вкладки "Питание"
+    connect(secondaryAddTaskButton, &QPushButton::clicked, this, &DayWindow::addTaskToSecondary);
+    connect(secondaryRemoveTaskButton, &QPushButton::clicked, this, &DayWindow::removeSelectedTaskFromSecondary);
+
+    // Подключение кнопки возврата
     connect(backButton, &QPushButton::clicked, this, &DayWindow::backToCalendar);
 
-    // Загрузка задач из базы данных
-    loadTasks();
+    // Загрузка задач
+    loadTasks("primary", primaryTaskList);
+    loadTasks("secondary", secondaryTaskList);
 }
 
-void DayWindow::addTask() {
-    QString task = taskInput->text().trimmed();
+void DayWindow::addTaskToPrimary() {
+    QString task = primaryTaskInput->text().trimmed();
     if (!task.isEmpty()) {
-        taskList->addItem(task);   // Добавляем задачу в список
-        saveTask(task);           // Сохраняем задачу в базу данных
-        taskInput->clear();       // Очищаем поле ввода
+        primaryTaskList->addItem(task);
+        saveTask("primary", task);
+        primaryTaskInput->clear();
     }
 }
 
-void DayWindow::removeSelectedTask() {
-    QListWidgetItem *selectedItem = taskList->currentItem();
+void DayWindow::addTaskToSecondary() {
+    QString task = secondaryTaskInput->text().trimmed();
+    if (!task.isEmpty()) {
+        secondaryTaskList->addItem(task);
+        saveTask("secondary", task);
+        secondaryTaskInput->clear();
+    }
+}
+
+void DayWindow::removeSelectedTaskFromPrimary() {
+    QListWidgetItem *selectedItem = primaryTaskList->currentItem();
     if (selectedItem) {
         QString task = selectedItem->text();
-        delete selectedItem;       // Удаляем задачу из списка
-        deleteTask(task);          // Удаляем задачу из базы данных
+        delete selectedItem;
+        deleteTask("primary", task);
     }
 }
 
-void DayWindow::loadTasks() {
+void DayWindow::removeSelectedTaskFromSecondary() {
+    QListWidgetItem *selectedItem = secondaryTaskList->currentItem();
+    if (selectedItem) {
+        QString task = selectedItem->text();
+        delete selectedItem;
+        deleteTask("secondary", task);
+    }
+}
+
+void DayWindow::loadTasks(const QString &listName, QListWidget *taskList) {
     QSqlQuery query(db);
-    query.prepare("SELECT task FROM tasks WHERE date = :date");
+    query.prepare("SELECT task FROM tasks WHERE date = :date AND listName = :listName");
     query.bindValue(":date", date);
+    query.bindValue(":listName", listName);
 
     if (query.exec()) {
         while (query.next()) {
@@ -73,10 +127,11 @@ void DayWindow::loadTasks() {
     }
 }
 
-void DayWindow::saveTask(const QString &task) {
+void DayWindow::saveTask(const QString &listName, const QString &task) {
     QSqlQuery query(db);
-    query.prepare("INSERT INTO tasks (date, task) VALUES (:date, :task)");
+    query.prepare("INSERT INTO tasks (date, listName, task) VALUES (:date, :listName, :task)");
     query.bindValue(":date", date);
+    query.bindValue(":listName", listName);
     query.bindValue(":task", task);
 
     if (!query.exec()) {
@@ -84,10 +139,11 @@ void DayWindow::saveTask(const QString &task) {
     }
 }
 
-void DayWindow::deleteTask(const QString &task) {
+void DayWindow::deleteTask(const QString &listName, const QString &task) {
     QSqlQuery query(db);
-    query.prepare("DELETE FROM tasks WHERE date = :date AND task = :task");
+    query.prepare("DELETE FROM tasks WHERE date = :date AND listName = :listName AND task = :task");
     query.bindValue(":date", date);
+    query.bindValue(":listName", listName);
     query.bindValue(":task", task);
 
     if (!query.exec()) {
