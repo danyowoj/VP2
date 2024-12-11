@@ -1,148 +1,161 @@
 #include "calendarwindow.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QDate>
-#include <QPushButton>
-#include <QHeaderView>
-#include <QMessageBox>
+#include <QResizeEvent>
 
-CalendarWindow::CalendarWindow() {
-    setWindowTitle("Calendar");
-    resize(800, 600);
+CalendarWindow::CalendarWindow(QWidget *parent)
+    : QWidget(parent), currentDate(QDate::currentDate()) {
+    setWindowTitle("Календарь");
 
-    // Инициализация центрального виджета и его макета
-    QWidget *centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
-    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+    // Задаём минимальные и максимальные размеры окна
+    setMinimumSize(450, 250);
+    setMaximumSize(900, 500);
 
-    calendarTable = new QTableWidget(6, 7, this);
-    calendarTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    calendarTable->horizontalHeader()->setVisible(false);
-    calendarTable->verticalHeader()->setVisible(false);
-    calendarTable->setGridStyle(Qt::SolidLine);
-    calendarTable->setSelectionMode(QAbstractItemView::NoSelection);
+    resize(450, 250);
 
-    // Создаем выпадающие списки для месяца и года
+    // Основной макет
+    mainLayout = new QVBoxLayout(this);
+
+    // Элементы выбора месяца и года
+    QHBoxLayout *controlsLayout = new QHBoxLayout();
     monthComboBox = new QComboBox(this);
     yearComboBox = new QComboBox(this);
+    updateButton = new QPushButton("Обновить", this);
 
-    for (int month = 1; month <= 12; ++month) {
-        monthComboBox->addItem(QDate::longMonthName(month), month);
+    // Заполняем месяцы
+    for (int i = 1; i <= 12; ++i) {
+        monthComboBox->addItem(QDate::longMonthName(i), i);
     }
+    monthComboBox->setCurrentIndex(currentDate.month() - 1);
 
-    int currentYear = QDate::currentDate().year();
-    for (int year = currentYear - 50; year <= currentYear + 50; ++year) {
+    // Заполняем годы
+    for (int year = 2000; year <= 2100; ++year) {
         yearComboBox->addItem(QString::number(year), year);
     }
+    yearComboBox->setCurrentText(QString::number(currentDate.year()));
 
-    monthComboBox->setCurrentIndex(QDate::currentDate().month() - 1);
-    yearComboBox->setCurrentText(QString::number(currentYear));
+    // Добавляем элементы в макет
+    controlsLayout->addWidget(monthComboBox);
+    controlsLayout->addWidget(yearComboBox);
+    controlsLayout->addWidget(updateButton);
+    mainLayout->addLayout(controlsLayout);
 
-    // Создаем заголовок и настраиваем календарь
-    createHeader();
-    setupCalendar(currentYear, QDate::currentDate().month());
+    // Макет календаря
+    calendarLayout = new QGridLayout();
+    mainLayout->addLayout(calendarLayout);
 
-    mainLayout->addWidget(calendarTable);
+    // Создаем календарь
+    createCalendar();
 
-    // Подключаем сигналы
-    connect(calendarTable, &QTableWidget::cellClicked, this, [=](int row, int column) {
-        QTableWidgetItem *item = calendarTable->item(row, column);
-        if (item && !item->text().isEmpty()) {
-            int day = item->text().toInt();
-            int month = monthComboBox->currentData().toInt();
-            int year = yearComboBox->currentData().toInt();
-            QDate selectedDate(year, month, day);
+    // Подключаем сигнал обновления
+    connect(updateButton, &QPushButton::clicked, this, &CalendarWindow::updateCalendar);
+    connect(this, &CalendarWindow::resizeEvent, this, &CalendarWindow::adjustCalendarCellSizes);
 
-            DayWindow *dayWindow = new DayWindow(selectedDate, this);
-            dayWindow->exec();
-        }
-    });
-
-    connect(monthComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &CalendarWindow::updateCalendar);
-    connect(yearComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &CalendarWindow::updateCalendar);
+    // Принудительное обновление размера при запуске
+    adjustCalendarCellSizes();
 }
 
-void CalendarWindow::createHeader() {
-    QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout *>(centralWidget()->layout());
-    if (!mainLayout) {
-        mainLayout = new QVBoxLayout;
-        centralWidget()->setLayout(mainLayout);
-    }
-
-    QHBoxLayout *headerLayout = new QHBoxLayout;
-
-    QPushButton *prevButton = new QPushButton("<<", this);
-    QPushButton *nextButton = new QPushButton(">>", this);
-
-    headerLayout->addWidget(prevButton);
-    headerLayout->addWidget(monthComboBox);
-    headerLayout->addWidget(yearComboBox);
-    headerLayout->addWidget(nextButton);
-
-    QWidget *headerWidget = new QWidget(this);
-    headerWidget->setLayout(headerLayout);
-
-    mainLayout->insertWidget(0, headerWidget);
-
-    connect(prevButton, &QPushButton::clicked, this, [=]() {
-        int currentMonth = monthComboBox->currentIndex();
-        int currentYear = yearComboBox->currentText().toInt();
-
-        if (currentMonth == 0) {
-            currentMonth = 11;
-            currentYear--;
-        } else {
-            currentMonth--;
-        }
-
-        monthComboBox->setCurrentIndex(currentMonth);
-        yearComboBox->setCurrentText(QString::number(currentYear));
-    });
-
-    connect(nextButton, &QPushButton::clicked, this, [=]() {
-        int currentMonth = monthComboBox->currentIndex();
-        int currentYear = yearComboBox->currentText().toInt();
-
-        if (currentMonth == 11) {
-            currentMonth = 0;
-            currentYear++;
-        } else {
-            currentMonth++;
-        }
-
-        monthComboBox->setCurrentIndex(currentMonth);
-        yearComboBox->setCurrentText(QString::number(currentYear));
-    });
-}
-
-
-void CalendarWindow::setupCalendar(int year, int month) {
+void CalendarWindow::createCalendar() {
+    // Получаем выбранные месяц и год
+    int month = monthComboBox->currentData().toInt();
+    int year = yearComboBox->currentData().toInt();
     QDate firstDayOfMonth(year, month, 1);
-    int startColumn = firstDayOfMonth.dayOfWeek() - 1;
+
+    // Определяем количество дней и день недели первого числа
     int daysInMonth = firstDayOfMonth.daysInMonth();
+    int startDayOfWeek = firstDayOfMonth.dayOfWeek();
 
-    calendarTable->clearContents();
+    // Удаляем все предыдущие виджеты, чтобы избежать наложения
+    clearCalendar();
 
-    int day = 1;
-    for (int row = 0; row < 6; ++row) {
-        for (int column = 0; column < 7; ++column) {
-            if ((row == 0 && column < startColumn) || day > daysInMonth) {
-                calendarTable->setItem(row, column, new QTableWidgetItem());
-            } else {
-                QTableWidgetItem *item = new QTableWidgetItem(QString::number(day));
-                item->setTextAlignment(Qt::AlignCenter);
-                calendarTable->setItem(row, column, item);
-                ++day;
-            }
-        }
+    // Настройка сетки
+    for (int i = 0; i < 7; ++i) {
+        calendarLayout->setColumnStretch(i, 1); // Равномерное распределение ширины
     }
+    for (int i = 0; i < 6; ++i) {
+        calendarLayout->setRowStretch(i, 1); // Равномерное распределение высоты
+    }
+    calendarLayout->setSpacing(5); // Установка промежутков между кнопками
+    calendarLayout->setContentsMargins(5, 5, 5, 5); // Отступы от краев макета
 
-    calendarTable->resizeRowsToContents();
-    calendarTable->resizeColumnsToContents();
+    // Создаем кнопки для каждого дня
+    for (int day = 1; day <= daysInMonth; ++day) {
+        int row = (startDayOfWeek + day - 2) / 7; // Определяем строку
+        int col = (startDayOfWeek + day - 2) % 7; // Определяем колонку
+
+        QPushButton *dayButton = new QPushButton(QString::number(day), this);
+
+        // Устанавливаем минимальные размеры кнопок
+        dayButton->setMinimumSize(20, 20);
+
+        // Политика размера: кнопки будут расширяться
+        dayButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+        // Добавляем кнопку в сетку
+        calendarLayout->addWidget(dayButton, row, col);
+
+        // Подключаем сигнал нажатия
+        connect(dayButton, &QPushButton::clicked, this, [this, day]() {
+            openDayWindow(day);
+        });
+    }
+}
+
+
+
+void CalendarWindow::clearCalendar() {
+    while (QLayoutItem *item = calendarLayout->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
 }
 
 void CalendarWindow::updateCalendar() {
-    int year = yearComboBox->currentData().toInt();
-    int month = monthComboBox->currentData().toInt();
-    setupCalendar(year, month);
+    clearCalendar();
+    createCalendar();
+    adjustCalendarCellSizes();
+}
+
+void CalendarWindow::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+
+    // Обновляем календарь только при первом показе окна
+    static bool firstShow = true;
+    if (firstShow) {
+        updateCalendar();
+        firstShow = false;
+    }
+}
+
+void CalendarWindow::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event); // Обрабатываем стандартное событие
+    updateCalendar();            // Перестраиваем календарь
+}
+
+
+void CalendarWindow::adjustCalendarCellSizes() {
+    int cellWidth = this->width() / 7;  // 7 дней в неделе
+    int cellHeight = this->height() / 7;
+
+    for (int i = 0; i < calendarLayout->count(); ++i) {
+        QLayoutItem *item = calendarLayout->itemAt(i);
+        if (item && item->widget()) {
+            item->widget()->setFixedSize(cellWidth, cellHeight);
+        }
+    }
+}
+
+void CalendarWindow::openDayWindow(int day) {
+    QString date = QString("%1-%2-%3")
+                       .arg(yearComboBox->currentText())
+                       .arg(monthComboBox->currentIndex() + 1, 2, 10, QChar('0'))
+                       .arg(day, 2, 10, QChar('0'));
+
+    auto *dayWindow = new DayWindow(date);
+    dayWindow->show();
+    this->hide();
+
+    connect(dayWindow, &DayWindow::backToCalendar, this, [this, dayWindow]() {
+        dayWindow->close();
+        this->show();
+        delete dayWindow;
+    });
 }

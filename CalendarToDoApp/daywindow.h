@@ -1,23 +1,46 @@
 #ifndef DAYWINDOW_H
 #define DAYWINDOW_H
 
-#include <QDialog>
-#include <QDate>
-#include <QListWidget>
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QTabWidget>
 #include <QPushButton>
+#include <QLineEdit>
+#include <QListWidget>
 
-class DayWindow : public QDialog
-{
+class DayWindow : public QWidget {
     Q_OBJECT
 
 public:
-    explicit DayWindow(const QDate &date, QWidget *parent = nullptr);
+    explicit DayWindow(const QString &date, QWidget *parent = nullptr);
+
+signals:
+    void backToCalendar();
 
 private:
-    QDate selectedDate;
-    QWidget *createTodoList(const QString &fileSuffix);
-    void loadTasksFromFile(QListWidget *listWidget, const QString &fileSuffix);
-    void saveTasksToFile(QListWidget *listWidget, const QString &fileSuffix);
+    QString date;
+    QTabWidget *tabWidget;
+
+    QWidget *primaryTab;
+    QVBoxLayout *primaryLayout;
+    QLineEdit *primaryTaskInput;
+    QPushButton *primaryAddTaskButton;
+    QListWidget *primaryTaskList;
+    QPushButton *primaryRemoveTaskButton;
+
+    QWidget *secondaryTab;
+    QVBoxLayout *secondaryLayout;
+    QLineEdit *secondaryTaskInput;
+    QPushButton *secondaryAddTaskButton;
+    QListWidget *secondaryTaskList;
+    QPushButton *secondaryRemoveTaskButton;
+
+    QPushButton *backButton;
+
+    void addTaskToPrimary();
+    void addTaskToSecondary();
+    void removeSelectedTaskFromPrimary();
+    void removeSelectedTaskFromSecondary();
 };
 
 #endif // DAYWINDOW_H
