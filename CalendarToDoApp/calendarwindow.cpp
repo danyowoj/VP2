@@ -1,5 +1,6 @@
 #include "calendarwindow.h"
 #include <QResizeEvent>
+#include <QTextStream>
 
 CalendarWindow::CalendarWindow(QWidget *parent)
     : QWidget(parent), currentDate(QDate::currentDate()) {
@@ -89,6 +90,18 @@ void CalendarWindow::createCalendar() {
         // Политика размера: кнопки будут расширяться
         dayButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
+        // Проверяем наличие данных о тренировке и питании
+        QString date = QString("%1-%2-%3")
+                           .arg(year, 4, 10, QChar('0'))
+                           .arg(month, 2, 10, QChar('0'))
+                           .arg(day, 2, 10, QChar('0'));
+
+        if (hasTrainingData(date) || hasFoodData(date)) {
+            dayButton->setStyleSheet("background-color: green;"); // данные есть
+        } else {
+            dayButton->setStyleSheet("background-color: orange;"); // данных нет
+        }
+
         // Добавляем кнопку в сетку
         calendarLayout->addWidget(dayButton, row, col);
 
@@ -99,7 +112,41 @@ void CalendarWindow::createCalendar() {
     }
 }
 
+bool CalendarWindow::hasTrainingData(const QString &date) {
+    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
 
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line == "[Training]") {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CalendarWindow::hasFoodData(const QString &date) {
+    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line == "[Nutrition]") {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 void CalendarWindow::clearCalendar() {
     while (QLayoutItem *item = calendarLayout->takeAt(0)) {
@@ -163,9 +210,4 @@ void CalendarWindow::openDayWindow(int day) {
         this->show();
         delete dayWindow;
     });
-}
-
-void CalendarWindow::applyTemplateToDay(const QString &date) {
-    DayWindow *dayWindow = new DayWindow(date);
-    dayWindow->show();
 }

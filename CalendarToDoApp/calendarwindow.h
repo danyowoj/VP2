@@ -29,7 +29,8 @@ private:
     void openDayWindow(int day);
     void showEvent(QShowEvent *event) override;
 
-    void applyTemplateToDay(const QString &date);
+    bool hasTrainingData(const QString &date);
+    bool hasFoodData(const QString &date);
 
 private slots:
     void updateCalendar();
