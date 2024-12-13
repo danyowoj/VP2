@@ -32,9 +32,9 @@ DayWindow::DayWindow(const QString &date, QWidget *parent)
     secondaryTab = new QWidget(this);
     secondaryLayout = new QVBoxLayout(secondaryTab);
 
-    secondaryFoodTable = new QTableWidget(0, 2, secondaryTab);
-    secondaryFoodTable->setHorizontalHeaderLabels(QStringList() << "Блюдо" << "Калории");
-    secondaryFoodTable->horizontalHeader()->setStretchLastSection(true);
+    secondaryFoodTable = new QTableWidget(0, 5, secondaryTab);
+    secondaryFoodTable->setHorizontalHeaderLabels({"Блюдо", "Калории", "Белки (г)", "Жиры (г)", "Углеводы (г)"});
+    secondaryFoodTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     secondaryFoodTable->verticalHeader()->setVisible(false);
     secondaryFoodTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     secondaryFoodTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -77,47 +77,76 @@ void DayWindow::loadFoodData() {
     }
 
     QTextStream in(&file);
-    foodCalories.clear();
     while (!in.atEnd()) {
-        QString line = in.readLine();
-        QStringList parts = line.split(":");
-        if (parts.size() == 2) {
-            QString food = parts[0].trimmed();
-            int calories = parts[1].trimmed().toInt();
-            foodCalories[food] = calories;
+            QString line = in.readLine();
+            QStringList parts = line.split(';');
+            if (parts.size() == 5) { // Проверяем наличие всех полей
+                QString name = parts[0];
+                int calories = parts[1].toInt();
+                float proteins = parts[2].toFloat();
+                float fats = parts[3].toFloat();
+                float carbs = parts[4].toFloat();
+
+                foodData[name] = {calories, proteins, fats, carbs};
+            }
         }
-    }
     file.close();
 }
 
 void DayWindow::updateFoodTable() {
-    secondaryFoodTable->setRowCount(0);
-    for (auto it = foodCalories.begin(); it != foodCalories.end(); ++it) {
-        int row = secondaryFoodTable->rowCount();
-        secondaryFoodTable->insertRow(row);
-        secondaryFoodTable->setItem(row, 0, new QTableWidgetItem(it.key()));
-        secondaryFoodTable->setItem(row, 1, new QTableWidgetItem(QString::number(it.value())));
-    }
+    secondaryFoodTable->setRowCount(0); // Очищаем таблицу
+
+    for (int row = 0; row < secondaryFoodTable->rowCount(); ++row) {
+            secondaryFoodTable->removeRow(row);
+        }
+
+    int row = 0;
+        for (const auto &foodName : foodData.keys()) {
+            const FoodInfo &info = foodData[foodName];
+
+            secondaryFoodTable->insertRow(row);
+            secondaryFoodTable->setItem(row, 0, new QTableWidgetItem(foodName));
+            secondaryFoodTable->setItem(row, 1, new QTableWidgetItem(QString::number(info.calories)));
+            secondaryFoodTable->setItem(row, 2, new QTableWidgetItem(QString::number(info.proteins)));
+            secondaryFoodTable->setItem(row, 3, new QTableWidgetItem(QString::number(info.fats)));
+            secondaryFoodTable->setItem(row, 4, new QTableWidgetItem(QString::number(info.carbs)));
+
+            row++;
+        }
 }
 
 void DayWindow::addFoodToTable() {
-    QString food = secondaryFoodInput->text().trimmed();
-    if (food.isEmpty()) {
-        QMessageBox::warning(this, "Ошибка", "Введите название блюда.");
-        return;
-    }
+    QString foodName = secondaryFoodInput->text().trimmed();
+        if (foodName.isEmpty()) {
+            QMessageBox::warning(this, "Ошибка", "Введите название блюда в поле ввода.");
+            return;
+        }
 
-    int calories = foodCalories.value(food, -1);
-    if (calories == -1) {
-        QMessageBox::information(this, "Упс...", "Блюдо отсутствует в файле foods.txt. Калорийность не учитывается.");
-    }
+        if (foodData.contains(foodName)) {
+            // Если блюдо уже есть в foodData, добавляем его в таблицу
+            const FoodInfo &info = foodData[foodName];
 
-    int row = secondaryFoodTable->rowCount();
-    secondaryFoodTable->insertRow(row);
-    secondaryFoodTable->setItem(row, 0, new QTableWidgetItem(food));
-    secondaryFoodTable->setItem(row, 1, new QTableWidgetItem(QString::number(calories)));
+            int row = secondaryFoodTable->rowCount();
+            secondaryFoodTable->insertRow(row);
 
-    secondaryFoodInput->clear();
+            secondaryFoodTable->setItem(row, 0, new QTableWidgetItem(foodName));
+            secondaryFoodTable->setItem(row, 1, new QTableWidgetItem(QString::number(info.calories)));
+            secondaryFoodTable->setItem(row, 2, new QTableWidgetItem(QString::number(info.proteins)));
+            secondaryFoodTable->setItem(row, 3, new QTableWidgetItem(QString::number(info.fats)));
+            secondaryFoodTable->setItem(row, 4, new QTableWidgetItem(QString::number(info.carbs)));
+        } else {
+            // Если блюдо не найдено, добавляем его с пустыми данными
+            int row = secondaryFoodTable->rowCount();
+            secondaryFoodTable->insertRow(row);
+
+            secondaryFoodTable->setItem(row, 0, new QTableWidgetItem(foodName));
+            secondaryFoodTable->setItem(row, 1, new QTableWidgetItem("0")); // Калории
+            secondaryFoodTable->setItem(row, 2, new QTableWidgetItem("0")); // Белки
+            secondaryFoodTable->setItem(row, 3, new QTableWidgetItem("0")); // Жиры
+            secondaryFoodTable->setItem(row, 4, new QTableWidgetItem("0")); // Углеводы
+        }
+
+        secondaryFoodInput->clear(); // Очищаем поле ввода
 }
 
 void DayWindow::removeSelectedFood() {

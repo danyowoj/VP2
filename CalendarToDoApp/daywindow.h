@@ -10,6 +10,13 @@
 #include <QMap>
 #include <QListWidget>
 
+struct FoodInfo {
+    int calories;
+    float proteins;
+    float fats;
+    float carbs;
+};
+
 class DayWindow : public QWidget {
     Q_OBJECT
 
@@ -50,8 +57,8 @@ private:
     // Кнопка возврата
     QPushButton *backButton;
 
-    // Данные о калорийности
-    QMap<QString, int> foodCalories;
+    // Данные о КБЖУ
+    QMap<QString, FoodInfo> foodData;
 
     void loadFoodData();
     void updateFoodTable();
