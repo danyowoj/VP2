@@ -28,6 +28,7 @@ private slots:
     void addFoodToTable();
     void removeSelectedFood();
     void applyTemplate(const QString &templateName);
+    void setupFoodTable();
 
 signals:
     void backToCalendarRequested();

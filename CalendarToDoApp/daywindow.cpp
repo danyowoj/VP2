@@ -38,6 +38,7 @@ DayWindow::DayWindow(const QString &date, QWidget *parent)
     secondaryFoodTable->verticalHeader()->setVisible(false);
     secondaryFoodTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     secondaryFoodTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    setupFoodTable();
 
     secondaryFoodInput = new QLineEdit(secondaryTab);
     secondaryAddFoodButton = new QPushButton("Добавить блюдо", secondaryTab);
@@ -161,4 +162,20 @@ void DayWindow::removeSelectedFood() {
 
 void DayWindow::backToCalendar() {
     emit backToCalendarRequested();
+}
+
+void DayWindow::setupFoodTable() {
+    // Устанавливаем политику растягивания колонок
+    QHeaderView *header = secondaryFoodTable->horizontalHeader();
+    header->setSectionResizeMode(0, QHeaderView::Stretch); // Колонка с названием блюда занимает оставшееся место
+    header->setSectionResizeMode(1, QHeaderView::ResizeToContents); // Калории
+    header->setSectionResizeMode(2, QHeaderView::ResizeToContents); // Белки
+    header->setSectionResizeMode(3, QHeaderView::ResizeToContents); // Жиры
+    header->setSectionResizeMode(4, QHeaderView::ResizeToContents); // Углеводы
+
+    // Запрещаем пользователю менять размер колонок вручную
+    header->setSectionsMovable(false);
+
+    // Минимальная высота строки для лучшего отображения
+    secondaryFoodTable->verticalHeader()->setDefaultSectionSize(25);
 }
