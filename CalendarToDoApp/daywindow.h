@@ -23,12 +23,14 @@ class DayWindow : public QWidget {
 public:
     explicit DayWindow(const QString &date, QWidget *parent = nullptr);
     void backToCalendar();
+    ~DayWindow();
 
 private slots:
+    void addTaskToPrimary();
+    void removeSelectedTaskFromPrimary();
     void addFoodToTable();
     void removeSelectedFood();
     void applyTemplate(const QString &templateName);
-    void setupFoodTable();
 
 signals:
     void backToCalendarRequested();
@@ -62,7 +64,13 @@ private:
     QMap<QString, FoodInfo> foodData;
 
     void loadFoodData();
+    void saveFoodData();
     void updateFoodTable();
+    void setupFoodTable();
+
+    // Методы сохранения и загрузки пользовательских данных
+    void saveDayData();
+    void loadDayData();
 };
 
 #endif // DAYWINDOW_H

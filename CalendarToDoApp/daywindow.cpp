@@ -3,6 +3,9 @@
 #include <QTextStream>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <QDir>
+#include <QString>
+#include <QTextCodec>
 
 DayWindow::DayWindow(const QString &date, QWidget *parent)
     : QWidget(parent), date(date) {
@@ -62,12 +65,34 @@ DayWindow::DayWindow(const QString &date, QWidget *parent)
     setLayout(mainLayout);
 
     // Подключение сигналов
+    connect(primaryAddTaskButton, &QPushButton::clicked, this, &DayWindow::addTaskToPrimary);
+    connect(primaryRemoveTaskButton, &QPushButton::clicked, this, &DayWindow::removeSelectedTaskFromPrimary);
     connect(secondaryAddFoodButton, &QPushButton::clicked, this, &DayWindow::addFoodToTable);
     connect(secondaryRemoveFoodButton, &QPushButton::clicked, this, &DayWindow::removeSelectedFood);
     connect(backButton, &QPushButton::clicked, this, &DayWindow::backToCalendar);
 
     // Загрузка данных о продуктах
     loadFoodData();
+    loadDayData(); // Загружаем данные
+}
+
+DayWindow::~DayWindow() {
+    saveDayData();
+}
+
+void DayWindow::addTaskToPrimary() {
+    QString task = primaryTaskInput->text().trimmed();
+    if (!task.isEmpty()) {
+        primaryTaskList->addItem(task);
+        primaryTaskInput->clear();
+    }
+}
+
+void DayWindow::removeSelectedTaskFromPrimary() {
+    QListWidgetItem *selectedItem = primaryTaskList->currentItem();
+    if (selectedItem) {
+        delete selectedItem;
+    }
 }
 
 void DayWindow::loadFoodData() {
@@ -178,4 +203,98 @@ void DayWindow::setupFoodTable() {
 
     // Минимальная высота строки для лучшего отображения
     secondaryFoodTable->verticalHeader()->setDefaultSectionSize(25);
+}
+
+void DayWindow::saveDayData() {
+    QDir dir;
+    if (!dir.exists("data")) {
+        dir.mkpath("data");
+    }
+
+    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить данные для дня.");
+        return;
+    }
+
+    QTextStream out(&file);
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+    if (codec) {
+        out.setCodec(codec);
+    }
+#endif
+
+    // Сохраняем задачи тренировки
+    out << "[Training]\n";
+    for (int i = 0; i < primaryTaskList->count(); ++i) {
+        out << primaryTaskList->item(i)->text() << "\n";
+    }
+
+    // Сохраняем данные питания
+    out << "[Nutrition]\n";
+    for (int row = 0; row < secondaryFoodTable->rowCount(); ++row) {
+        QString foodName = secondaryFoodTable->item(row, 0)->text();
+        QString calories = secondaryFoodTable->item(row, 1)->text();
+        QString proteins = secondaryFoodTable->item(row, 2)->text();
+        QString fats = secondaryFoodTable->item(row, 3)->text();
+        QString carbs = secondaryFoodTable->item(row, 4)->text();
+        out << QString("%1;%2;%3;%4;%5\n").arg(foodName, calories, proteins, fats, carbs);
+    }
+
+    file.close();
+}
+
+void DayWindow::loadDayData() {
+    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Ошибка", "Не удалось загрузить данные для дня.");
+        return;
+    }
+
+    QTextStream in(&file);
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+    if (codec) {
+        in.setCodec(codec);
+    }
+#endif
+
+    QString currentSection;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        if (line.isEmpty())
+            continue;
+
+        if (line == "[Training]") {
+            currentSection = "Training";
+            continue;
+        } else if (line == "[Nutrition]") {
+            currentSection = "Nutrition";
+            continue;
+        }
+
+        if (currentSection == "Training") {
+            primaryTaskList->addItem(line);
+        } else if (currentSection == "Nutrition") {
+            QStringList parts = line.split(';');
+            if (parts.size() == 5) {
+                int row = secondaryFoodTable->rowCount();
+                secondaryFoodTable->insertRow(row);
+                for (int col = 0; col < parts.size(); ++col) {
+                    secondaryFoodTable->setItem(row, col, new QTableWidgetItem(parts[col]));
+                }
+            }
+        }
+    }
+
+    file.close();
 }
