@@ -29,6 +29,8 @@ private:
     void openDayWindow(int day);
     void showEvent(QShowEvent *event) override;
 
+    void applyTemplateToDay(const QString &date);
+
 private slots:
     void updateCalendar();
 

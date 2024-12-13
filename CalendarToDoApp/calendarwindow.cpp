@@ -7,9 +7,9 @@ CalendarWindow::CalendarWindow(QWidget *parent)
 
     // Задаём минимальные и максимальные размеры окна
     setMinimumSize(450, 250);
-    setMaximumSize(900, 500);
+    setMaximumSize(1500, 900);
 
-    resize(450, 250);
+    resize(800, 600);
 
     // Основной макет
     mainLayout = new QVBoxLayout(this);
@@ -150,12 +150,22 @@ void CalendarWindow::openDayWindow(int day) {
                        .arg(day, 2, 10, QChar('0'));
 
     auto *dayWindow = new DayWindow(date);
-    dayWindow->show();
-    this->hide();
+    connect(dayWindow, &DayWindow::backToCalendarRequested, this, [this, dayWindow]() {
+            dayWindow->close();
+            this->show(); // Показываем окно календаря
+            dayWindow->deleteLater();
+        });
+        dayWindow->show();
+        this->hide();
 
     connect(dayWindow, &DayWindow::backToCalendar, this, [this, dayWindow]() {
         dayWindow->close();
         this->show();
         delete dayWindow;
     });
+}
+
+void CalendarWindow::applyTemplateToDay(const QString &date) {
+    DayWindow *dayWindow = new DayWindow(date);
+    dayWindow->show();
 }
