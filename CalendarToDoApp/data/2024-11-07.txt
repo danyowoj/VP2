@@ -1,5 +1,4 @@
 [Training]
-Подтягивания;70
 [Nutrition]
 [Weight]
-74
+71

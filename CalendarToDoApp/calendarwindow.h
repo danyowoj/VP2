@@ -8,6 +8,12 @@
 #include <QComboBox>
 #include <QPushButton>
 #include "daywindow.h"
+#include <QtCharts/QChartView>
+#include <QtCharts/QLineSeries>
+#include <QtCharts/QValueAxis>
+
+// Включаем необходимые библиотеки
+QT_CHARTS_USE_NAMESPACE
 
 class CalendarWindow : public QWidget {
     Q_OBJECT
@@ -16,6 +22,9 @@ public:
     explicit CalendarWindow(QWidget *parent = nullptr);
 
 private:
+    QTabWidget *tabWidget;
+
+    QWidget *calendarTab;
     QVBoxLayout *mainLayout;
     QGridLayout *calendarLayout;
     QComboBox *monthComboBox;
@@ -23,7 +32,22 @@ private:
     QPushButton *updateButton;
     QDate currentDate;
 
+    // Вкладка прогресса
+    QWidget *progressTab;
+    QChartView *chartView;
+    QLineSeries *weightSeries;
+    QLineSeries *desiredWeightSeries;
+    QDoubleSpinBox *desiredWeightInput;
+    QLabel *desiredWeightLabel;
+
     void createCalendar();
+    void createProgressTab();
+    void initWeightChart();
+    void updateWeightChart();
+    void loadProgressData();
+    void loadDesiredWeight();
+    void saveDesiredWeight();
+
     void clearCalendar();
     void adjustCalendarCellSizes();
     void openDayWindow(int day);
@@ -34,6 +58,7 @@ private:
 
 private slots:
     void updateCalendar();
+    void onDesiredWeightChanged();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
