@@ -9,6 +9,8 @@
 #include <QVBoxLayout>
 #include <QMap>
 #include <QListWidget>
+#include <QLabel>
+#include <QDoubleSpinBox>
 
 struct FoodInfo {
     int calories;
@@ -31,6 +33,8 @@ private slots:
     void addFoodToTable();
     void removeSelectedFood();
     void applyTemplate(const QString &templateName);
+    void saveSummaryData();
+    void updateSummaryTab();
 
 signals:
     void backToCalendarRequested();
@@ -57,6 +61,15 @@ private:
     QTableWidget *secondaryFoodTable;
     QPushButton *secondaryRemoveFoodButton;
 
+    // Вкладка "Итог дня"
+    QWidget *summaryTab;
+    QVBoxLayout *summaryLayout;
+    QLabel *caloriesSumLabel;
+    QLabel *proteinsSumLabel;
+    QLabel *fatsSumLabel;
+    QLabel *carbsSumLabel;
+    QDoubleSpinBox *weightInput;
+
     // Кнопка возврата
     QPushButton *backButton;
 
@@ -67,6 +80,8 @@ private:
     void saveFoodData();
     void updateFoodTable();
     void setupFoodTable();
+    void calculateMacros();
+    void calculateDailySummary();
 
     // Методы сохранения и загрузки пользовательских данных
     void saveDayData();

@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QString>
 #include <QTextCodec>
+#include <QDoubleSpinBox>
 
 DayWindow::DayWindow(const QString &date, QWidget *parent)
     : QWidget(parent), date(date) {
@@ -55,6 +56,30 @@ DayWindow::DayWindow(const QString &date, QWidget *parent)
 
     tabWidget->addTab(secondaryTab, "Питание");
 
+    // Вкладка "Итог дня"
+    summaryTab = new QWidget(this);
+    summaryLayout = new QVBoxLayout(summaryTab);
+
+    caloriesSumLabel = new QLabel("Калории: 0", summaryTab);
+    proteinsSumLabel = new QLabel("Белки: 0 г", summaryTab);
+    fatsSumLabel = new QLabel("Жиры: 0 г", summaryTab);
+    carbsSumLabel = new QLabel("Углеводы: 0 г", summaryTab);
+
+    // Поле для ввода веса
+    weightInput = new QDoubleSpinBox(summaryTab);
+    weightInput->setRange(0, 500); // Диапазон веса
+    weightInput->setDecimals(1); // 1 знак после запятой
+    weightInput->setPrefix("Вес: ");
+    weightInput->setValue(0.0);
+
+    summaryLayout->addWidget(caloriesSumLabel);
+    summaryLayout->addWidget(proteinsSumLabel);
+    summaryLayout->addWidget(fatsSumLabel);
+    summaryLayout->addWidget(carbsSumLabel);
+    summaryLayout->addWidget(weightInput);
+
+    tabWidget->addTab(summaryTab, "Итог дня");
+
     // Кнопка возврата
     backButton = new QPushButton("Назад", this);
 
@@ -70,6 +95,8 @@ DayWindow::DayWindow(const QString &date, QWidget *parent)
     connect(secondaryAddFoodButton, &QPushButton::clicked, this, &DayWindow::addFoodToTable);
     connect(secondaryRemoveFoodButton, &QPushButton::clicked, this, &DayWindow::removeSelectedFood);
     connect(backButton, &QPushButton::clicked, this, &DayWindow::backToCalendar);
+    connect(tabWidget, &QTabWidget::currentChanged, this, &DayWindow::updateSummaryTab);
+    connect(weightInput, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &DayWindow::saveDayData);
 
     // Загрузка данных о продуктах
     loadFoodData();
@@ -245,6 +272,10 @@ void DayWindow::saveDayData() {
         out << QString("%1;%2;%3;%4;%5\n").arg(foodName, calories, proteins, fats, carbs);
     }
 
+    // Сохраняем данные о весе
+    double weight = weightInput->value();
+    out << "[Weight]\n" << weight << "\n";
+
     file.close();
 }
 
@@ -280,6 +311,9 @@ void DayWindow::loadDayData() {
         } else if (line == "[Nutrition]") {
             currentSection = "Nutrition";
             continue;
+        } else if (line == "[Weight]") {
+            currentSection = "Weight";
+            continue;
         }
 
         if (currentSection == "Training") {
@@ -293,8 +327,71 @@ void DayWindow::loadDayData() {
                     secondaryFoodTable->setItem(row, col, new QTableWidgetItem(parts[col]));
                 }
             }
+        } else if (currentSection == "Weight") {
+            bool ok;
+            double savedWeight = line.toDouble(&ok);
+            if (ok) {
+                weightInput->setValue(savedWeight);  // Устанавливаем сохраненный вес
+            }
         }
     }
 
+    calculateDailySummary();
+
     file.close();
+}
+
+
+void DayWindow::saveSummaryData() {
+    double weight = weightInput->value();
+    QString weightStr = QString::number(weight, 'f', 1);
+
+    // Сохраняем информацию о весе и макросах
+    QFile file(QString("data/%1_summary.txt").arg(date));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить данные.");
+        return;
+    }
+
+    QTextStream out(&file);
+
+    out << "Вес: " << weightStr << "\n";
+    out << "Калории: " << caloriesSumLabel->text().split(": ")[1] << "\n";
+    out << "Белки: " << proteinsSumLabel->text().split(": ")[1] << "\n";
+    out << "Жиры: " << fatsSumLabel->text().split(": ")[1] << "\n";
+    out << "Углеводы: " << carbsSumLabel->text().split(": ")[1] << "\n";
+
+    // Сохраняем также данные о тренировках и питании
+    // Сохранение информации о тренировках и пищи будет реализовано в других функциях сохранения
+
+    file.close();
+
+    QMessageBox::information(this, "Успех", "Данные успешно сохранены.");
+}
+
+void DayWindow::calculateDailySummary() {
+    // Рассчитываем итоговые значения по калориям и макроэлементам
+    double totalCalories = 0.0;
+    double totalProteins = 0.0;
+    double totalFats = 0.0;
+    double totalCarbs = 0.0;
+
+    // Считаем итоги на основе данных таблицы
+    for (int row = 0; row < secondaryFoodTable->rowCount(); ++row) {
+        totalCalories += secondaryFoodTable->item(row, 1)->text().toDouble();
+        totalProteins += secondaryFoodTable->item(row, 2)->text().toDouble();
+        totalFats += secondaryFoodTable->item(row, 3)->text().toDouble();
+        totalCarbs += secondaryFoodTable->item(row, 4)->text().toDouble();
+    }
+
+    caloriesSumLabel->setText(QString("Калории: %1").arg(totalCalories));
+    proteinsSumLabel->setText(QString("Белки: %1 г").arg(totalProteins));
+    fatsSumLabel->setText(QString("Жиры: %1 г").arg(totalFats));
+    carbsSumLabel->setText(QString("Углеводы: %1 г").arg(totalCarbs));
+}
+
+void DayWindow::updateSummaryTab() {
+    if (tabWidget->currentIndex() == 2) {  // Вкладка "Итог дня"
+        calculateDailySummary();
+    }
 }
