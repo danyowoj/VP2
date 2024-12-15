@@ -7,6 +7,7 @@
 #include <QString>
 #include <QTextCodec>
 #include <QDoubleSpinBox>
+#include <QDebug>
 
 DayWindow::DayWindow(const QString &date, QWidget *parent)
     : QWidget(parent), date(date) {
@@ -233,6 +234,16 @@ void DayWindow::setupFoodTable() {
 }
 
 void DayWindow::saveDayData() {
+    // Проверяем, есть ли данные о тренировке, питании и весе
+    bool hasTrainingData = primaryTaskList->count() > 0; // Есть ли задачи в тренировке
+    bool hasFoodData = secondaryFoodTable->rowCount() > 0; // Есть ли записи в таблице питания
+    bool hasWeightData = weightInput->value() > 0.0; // Есть ли вес, не равный 0
+
+    // Если нет данных по тренировке, питанию или весу, не сохраняем
+    if (!hasTrainingData && !hasFoodData && !hasWeightData) {
+        return; // Не сохраняем данные, если все пусто или вес равен 0
+    }
+
     QDir dir;
     if (!dir.exists("data")) {
         dir.mkpath("data");
@@ -242,7 +253,7 @@ void DayWindow::saveDayData() {
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить данные для дня.");
+        qDebug() << "Не удалось сохранить данные для дня";
         return;
     }
 
@@ -256,25 +267,31 @@ void DayWindow::saveDayData() {
 #endif
 
     // Сохраняем задачи тренировки
-    out << "[Training]\n";
-    for (int i = 0; i < primaryTaskList->count(); ++i) {
-        out << primaryTaskList->item(i)->text() << "\n";
+    if (hasTrainingData) {
+        out << "[Training]\n";
+        for (int i = 0; i < primaryTaskList->count(); ++i) {
+            out << primaryTaskList->item(i)->text() << "\n";
+        }
     }
 
     // Сохраняем данные питания
-    out << "[Nutrition]\n";
-    for (int row = 0; row < secondaryFoodTable->rowCount(); ++row) {
-        QString foodName = secondaryFoodTable->item(row, 0)->text();
-        QString calories = secondaryFoodTable->item(row, 1)->text();
-        QString proteins = secondaryFoodTable->item(row, 2)->text();
-        QString fats = secondaryFoodTable->item(row, 3)->text();
-        QString carbs = secondaryFoodTable->item(row, 4)->text();
-        out << QString("%1;%2;%3;%4;%5\n").arg(foodName, calories, proteins, fats, carbs);
+    if (hasFoodData) {
+        out << "[Nutrition]\n";
+        for (int row = 0; row < secondaryFoodTable->rowCount(); ++row) {
+            QString foodName = secondaryFoodTable->item(row, 0)->text();
+            QString calories = secondaryFoodTable->item(row, 1)->text();
+            QString proteins = secondaryFoodTable->item(row, 2)->text();
+            QString fats = secondaryFoodTable->item(row, 3)->text();
+            QString carbs = secondaryFoodTable->item(row, 4)->text();
+            out << QString("%1;%2;%3;%4;%5\n").arg(foodName, calories, proteins, fats, carbs);
+        }
     }
 
-    // Сохраняем данные о весе
-    double weight = weightInput->value();
-    out << "[Weight]\n" << weight << "\n";
+    // Сохраняем данные о весе, если вес больше 0
+    if (hasWeightData) {
+        double weight = weightInput->value();
+        out << "[Weight]\n" << weight << "\n";
+    }
 
     file.close();
 }
@@ -284,7 +301,7 @@ void DayWindow::loadDayData() {
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Ошибка", "Не удалось загрузить данные для дня.");
+        qDebug() << "Не удалось загрузить данные для дня";
         return;
     }
 

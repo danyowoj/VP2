@@ -121,10 +121,18 @@ void CalendarWindow::createCalendar() {
                            .arg(month, 2, 10, QChar('0'))
                            .arg(day, 2, 10, QChar('0'));
 
-        if (hasTrainingData(date) || hasFoodData(date)) {
-            dayButton->setStyleSheet("background-color: green;"); // данные есть
+        bool T = hasTrainingData(date);
+        bool F = hasFoodData(date);
+        bool W = hasWeightData(date);
+
+        if ((T + F + W) == 1) {
+            dayButton->setStyleSheet("background-color: orange;"); // Есть только одна запись
+        } else if ((T + F + W) == 2) {
+            dayButton->setStyleSheet("background-color: yellow;"); // Есть две записи
+        } else if ((T + F + W) == 3) {
+            dayButton->setStyleSheet("background-color: green;"); //Есть все три записи
         } else {
-            dayButton->setStyleSheet("background-color: orange;"); // данных нет
+            dayButton->setStyleSheet("background-color: red;"); // Данных нет
         }
 
         // Добавляем кнопку в сетку
@@ -145,13 +153,26 @@ bool CalendarWindow::hasTrainingData(const QString &date) {
     }
 
     QTextStream in(&file);
+    bool foundTrainingSection = false;
+
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
+
         if (line == "[Training]") {
-            return true;
+            foundTrainingSection = true;
+            continue;
+        }
+
+        if (foundTrainingSection) {
+            if (!line.isEmpty() && line != "[Nutrition]") {
+                file.close();
+                return true;
+            }
+            break;
         }
     }
 
+    file.close();
     return false;
 }
 
@@ -163,13 +184,57 @@ bool CalendarWindow::hasFoodData(const QString &date) {
     }
 
     QTextStream in(&file);
+    bool foundNutritionSection = false;
+
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
+
         if (line == "[Nutrition]") {
-            return true;
+            foundNutritionSection = true;
+            continue;
+        }
+
+        if (foundNutritionSection) {
+            if (!line.isEmpty() && line != "[Weight]") {
+                file.close();
+                return true;
+            }
+            break;
         }
     }
 
+    file.close();
+    return false;
+}
+
+bool CalendarWindow::hasWeightData(const QString &date) {
+    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QTextStream in(&file);
+    bool foundNutritionSection = false;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        if (line == "[Weight]") {
+            foundNutritionSection = true;
+            continue;
+        }
+
+        if (foundNutritionSection) {
+            if (line != "0") {
+                file.close();
+                return true;
+            }
+            break;
+        }
+    }
+
+    file.close();
     return false;
 }
 
@@ -202,7 +267,6 @@ void CalendarWindow::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event); // Обрабатываем стандартное событие
     updateCalendar();            // Перестраиваем календарь
 }
-
 
 void CalendarWindow::adjustCalendarCellSizes() {
     int cellWidth = this->width() / 7;  // 7 дней в неделе
@@ -312,7 +376,6 @@ void CalendarWindow::initWeightChart() {
     // Загружаем данные для графика (фактический вес и желаемый)
     updateWeightChart();
 }
-
 
 void CalendarWindow::updateWeightChart() {
     weightSeries->clear();

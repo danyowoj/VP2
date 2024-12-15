@@ -55,6 +55,7 @@ private:
 
     bool hasTrainingData(const QString &date);
     bool hasFoodData(const QString &date);
+    bool hasWeightData(const QString &date);
 
 private slots:
     void updateCalendar();
