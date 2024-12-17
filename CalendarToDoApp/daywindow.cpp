@@ -12,7 +12,21 @@
 DayWindow::DayWindow(const QString &date, QWidget *parent)
     : QWidget(parent), date(date) {
     setWindowTitle(QString("День: %1").arg(date));
-    resize(800, 600);
+
+    setMinimumSize(640, 360);
+
+    resize(960, 720);
+
+    // Загружаем стили из файла styles.qss
+    QFile styleFile("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/styles.qss");
+    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
+        QTextStream stream(&styleFile);
+        QString styleSheet = stream.readAll();
+        this->setStyleSheet(styleSheet);
+        styleFile.close();
+    } else {
+        qDebug() << "Не удалось загрузить файл стилей.";
+    }
 
     tabWidget = new QTabWidget(this);
 
@@ -61,23 +75,25 @@ DayWindow::DayWindow(const QString &date, QWidget *parent)
     summaryTab = new QWidget(this);
     summaryLayout = new QVBoxLayout(summaryTab);
 
+    // Поле для ввода веса
+    weightInput = new QDoubleSpinBox(summaryTab);
+    weightInput->setRange(0, 500); // Диапазон веса
+    weightInput->setDecimals(1); // 1 знак после запятой
+    weightInput->setPrefix("Вес (кг): ");
+    weightInput->setValue(0.0);
+
     caloriesSumLabel = new QLabel("Калории: 0", summaryTab);
     proteinsSumLabel = new QLabel("Белки: 0 г", summaryTab);
     fatsSumLabel = new QLabel("Жиры: 0 г", summaryTab);
     carbsSumLabel = new QLabel("Углеводы: 0 г", summaryTab);
 
-    // Поле для ввода веса
-    weightInput = new QDoubleSpinBox(summaryTab);
-    weightInput->setRange(0, 500); // Диапазон веса
-    weightInput->setDecimals(1); // 1 знак после запятой
-    weightInput->setPrefix("Вес: ");
-    weightInput->setValue(0.0);
+    adjustTabWidths();
 
+    summaryLayout->addWidget(weightInput);
     summaryLayout->addWidget(caloriesSumLabel);
     summaryLayout->addWidget(proteinsSumLabel);
     summaryLayout->addWidget(fatsSumLabel);
     summaryLayout->addWidget(carbsSumLabel);
-    summaryLayout->addWidget(weightInput);
 
     tabWidget->addTab(summaryTab, "Итог дня");
 
@@ -410,5 +426,22 @@ void DayWindow::calculateDailySummary() {
 void DayWindow::updateSummaryTab() {
     if (tabWidget->currentIndex() == 2) {  // Вкладка "Итог дня"
         calculateDailySummary();
+    }
+}
+
+void DayWindow::adjustTabWidths() {
+    // Получаем доступ к QTabBar
+    QTabBar *tabBar = tabWidget->tabBar();
+
+    // Устанавливаем политику размера
+    tabBar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+
+    // Используем QFontMetrics для расчёта ширины текста
+    QFontMetrics metrics(tabBar->font());
+    for (int i = 0; i < tabBar->count(); ++i) {
+        QString tabText = tabBar->tabText(i);
+        int textWidth = metrics.horizontalAdvance(tabText) * 8; // ширина текста + отступы
+        tabBar->setTabData(i, QSize(textWidth, 30));            // Устанавливаем размер
+        tabBar->setMinimumWidth(textWidth);                     // Минимальная ширина
     }
 }

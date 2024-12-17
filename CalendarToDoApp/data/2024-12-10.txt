@@ -1,4 +1,2 @@
-[Training]
-[Nutrition]
 [Weight]
 74.2

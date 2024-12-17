@@ -53,6 +53,8 @@ private:
     void openDayWindow(int day);
     void showEvent(QShowEvent *event) override;
 
+    void adjustTabWidths();
+
     bool hasTrainingData(const QString &date);
     bool hasFoodData(const QString &date);
     bool hasWeightData(const QString &date);

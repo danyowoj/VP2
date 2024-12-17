@@ -11,10 +11,20 @@ CalendarWindow::CalendarWindow(QWidget *parent)
     setWindowTitle("Журнал питания и тренировок");
 
     // Задаём минимальные и максимальные размеры окна
-    setMinimumSize(450, 250);
-    setMaximumSize(1500, 900);
+    setMinimumSize(640, 360);
 
-    resize(800, 600);
+    resize(960, 720);
+
+    // Загружаем стили из файла styles.qss
+    QFile styleFile("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/styles.qss");
+    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
+        QTextStream stream(&styleFile);
+        QString styleSheet = stream.readAll();
+        this->setStyleSheet(styleSheet);
+        styleFile.close();
+    } else {
+        qDebug() << "Не удалось загрузить файл стилей.";
+    }
 
     // Основной макет
     mainLayout = new QVBoxLayout(this);
@@ -76,6 +86,8 @@ CalendarWindow::CalendarWindow(QWidget *parent)
     createProgressTab();
     connect(desiredWeightInput, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &CalendarWindow::onDesiredWeightChanged);
 
+    adjustTabWidths();
+
     loadDesiredWeight();
 }
 
@@ -99,8 +111,8 @@ void CalendarWindow::createCalendar() {
     for (int i = 0; i < 6; ++i) {
         calendarLayout->setRowStretch(i, 1); // Равномерное распределение высоты
     }
-    calendarLayout->setSpacing(5); // Установка промежутков между кнопками
-    calendarLayout->setContentsMargins(5, 5, 5, 5); // Отступы от краев макета
+    calendarLayout->setSpacing(5);
+    calendarLayout->setContentsMargins(5, 5, 20, 5); // Отступы от краев макета
 
     // Создаем кнопки для каждого дня
     for (int day = 1; day <= daysInMonth; ++day) {
@@ -126,13 +138,13 @@ void CalendarWindow::createCalendar() {
         bool W = hasWeightData(date);
 
         if ((T + F + W) == 1) {
-            dayButton->setStyleSheet("background-color: orange;"); // Есть только одна запись
+            dayButton->setStyleSheet("background-color: #BD613C;"); // Есть только одна запись
         } else if ((T + F + W) == 2) {
-            dayButton->setStyleSheet("background-color: yellow;"); // Есть две записи
+            dayButton->setStyleSheet("background-color: #BCAF4D;"); // Есть две записи
         } else if ((T + F + W) == 3) {
-            dayButton->setStyleSheet("background-color: green;"); //Есть все три записи
+            dayButton->setStyleSheet("background-color: #6D8C00;"); //Есть все три записи
         } else {
-            dayButton->setStyleSheet("background-color: red;"); // Данных нет
+            dayButton->setStyleSheet("background-color: #AA1803;"); // Данных нет
         }
 
         // Добавляем кнопку в сетку
@@ -336,46 +348,70 @@ void CalendarWindow::initWeightChart() {
     // Инициализация графика
     QChart *chart = new QChart();
     chart->setTitle("Динамика изменения веса");
+    chart->setTitleBrush(QBrush(QColor("#AA1803"))); // Цвет заголовка
+    chart->setBackgroundBrush(QBrush(QColor("#F1BAA1"))); // Цвет фона графика
+    chart->setDropShadowEnabled(false); // Убираем тень
 
     // Создаем серию для фактического веса
     weightSeries = new QLineSeries();
     weightSeries->setName("Фактический вес");
+    weightSeries->setColor(QColor("#AA1803")); // Цвет линии для фактического веса
+    weightSeries->setPen(QPen(QColor("#AA1803"), 2)); // Толщина и цвет линии
 
     // Создаем серию для желаемого веса
     desiredWeightSeries = new QLineSeries();
     desiredWeightSeries->setName("Желаемый вес");
+    desiredWeightSeries->setColor(QColor("#6D8C00")); // Цвет линии для желаемого веса
+    desiredWeightSeries->setPen(QPen(QColor("#6D8C00"), 2, Qt::DashLine)); // Пунктирная линия
 
     // Добавляем серии на график
     chart->addSeries(weightSeries);
     chart->addSeries(desiredWeightSeries);
 
-    // Создаем оси
+    // Создаем ось X
     QValueAxis *axisX = new QValueAxis();
     axisX->setTitleText("День месяца");
+    axisX->setLabelsColor(QColor("#6D8C00")); // Цвет подписей оси X
+    axisX->setLinePenColor(QColor("#BD613C")); // Цвет линии оси X
+    axisX->setGridLineColor(QColor("#BCAF4D")); // Цвет сетки оси X
     axisX->setLabelFormat("%d");
-    chart->setAxisX(axisX, weightSeries);
-    chart->setAxisX(axisX, desiredWeightSeries);
+    chart->addAxis(axisX, Qt::AlignBottom);
 
+    // Создаем ось Y
     QValueAxis *axisY = new QValueAxis();
     axisY->setTitleText("Вес (кг)");
+    axisY->setLabelsColor(QColor("#6D8C00")); // Цвет подписей оси Y
+    axisY->setLinePenColor(QColor("#BD613C")); // Цвет линии оси Y
+    axisY->setGridLineColor(QColor("#BCAF4D")); // Цвет сетки оси Y
     axisY->setLabelFormat("%.1f");
-    chart->setAxisY(axisY, weightSeries);
-    chart->setAxisY(axisY, desiredWeightSeries);
-
-    // Настройка отображения оси Y: диапазон будет автоматически обновляться
     axisY->setRange(0, 100); // Изначально ось Y установлена на 0-100 кг
+    chart->addAxis(axisY, Qt::AlignLeft);
 
-    // Устанавливаем график в графическое окно
+    // Привязываем оси к сериям
+    weightSeries->attachAxis(axisX);
+    weightSeries->attachAxis(axisY);
+    desiredWeightSeries->attachAxis(axisX);
+    desiredWeightSeries->attachAxis(axisY);
+
+    // Стилизация легенды
+    chart->legend()->setVisible(true);
+    chart->legend()->setLabelBrush(QBrush(QColor("#6D8C00"))); // Цвет текста в легенде
+    chart->legend()->setBrush(QBrush(QColor("#F1BAA1"))); // Фон легенды
+    chart->legend()->setPen(QPen(QColor("#BD613C"))); // Рамка легенды
+
+    // Создаем QChartView и устанавливаем график
     chartView = new QChartView(chart);
-    chartView->setRenderHint(QPainter::Antialiasing);
+    chartView->setRenderHint(QPainter::Antialiasing); // Сглаживание линий
+    chartView->setStyleSheet("border: 2px solid #BD613C; border-radius: 8px;"); // Стили рамки
+
+    // Размещение графика в окне
+    chartView->setGeometry(20, 20, 760, 400);
     chartView->setParent(this);
 
-    // Устанавливаем размеры и размещаем график в окне
-    chartView->setGeometry(20, 20, 760, 400);
-
-    // Загружаем данные для графика (фактический вес и желаемый)
+    // Загрузка данных для графика
     updateWeightChart();
 }
+
 
 void CalendarWindow::updateWeightChart() {
     weightSeries->clear();
@@ -525,3 +561,21 @@ void CalendarWindow::loadDesiredWeight() {
     desiredWeightInput->setValue(savedWeight);  // Устанавливаем сохраненный желаемый вес
     file.close();
 }
+
+void CalendarWindow::adjustTabWidths() {
+    // Получаем доступ к QTabBar
+    QTabBar *tabBar = tabWidget->tabBar();
+
+    // Устанавливаем политику размера
+    tabBar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+
+    // Используем QFontMetrics для расчёта ширины текста
+    QFontMetrics metrics(tabBar->font());
+    for (int i = 0; i < tabBar->count(); ++i) {
+        QString tabText = tabBar->tabText(i);
+        int textWidth = metrics.horizontalAdvance(tabText) * 8; // ширина текста + отступы
+        tabBar->setTabData(i, QSize(textWidth, 30));            // Устанавливаем размер
+        tabBar->setMinimumWidth(textWidth);                     // Минимальная ширина
+    }
+}
+

@@ -86,6 +86,8 @@ private:
     // Методы сохранения и загрузки пользовательских данных
     void saveDayData();
     void loadDayData();
+
+    void adjustTabWidths();
 };
 
 #endif // DAYWINDOW_H

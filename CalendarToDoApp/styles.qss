@@ -1,0 +1,83 @@
+/* Общий стиль окна */
+QWidget {
+    background-color: #F1BAA1; /* Светлый фон */
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+}
+
+/* Заголовки вкладок */
+QTabWidget::pane {
+    border: 1px solid #BD613C; /* Рамка вокруг вкладок */
+    background: #F1BAA1;
+}
+
+QTabBar::tab {
+    padding: 6px 12px; /* Добавляем отступы для текста */
+    background-color: #BD613C;
+    color: white;
+    border: 1px solid #AA1803;
+    border-radius: 5px;
+}
+
+QTabBar::tab:selected {
+    background-color: #AA1803;
+    color: #F1BAA1;
+    font-weight: bold;
+}
+
+/* Кнопки */
+QPushButton {
+    background-color: #BCAF4D;
+    color: white;
+    border: 1px solid #000000;
+    border-radius: 5px;
+    padding: 6px 12px;
+}
+
+QPushButton:hover {
+    background-color: #6D8C00;
+    color: #F1BAA1;
+}
+
+/* Поля ввода */
+QLineEdit {
+    border: 1px solid #BD613C;
+    border-radius: 5px;
+    padding: 5px;
+    background-color: #F1BAA1;
+    color: #AA1803;
+}
+
+QLineEdit:focus {
+    border: 2px solid #AA1803;
+}
+
+/* Списки и таблицы */
+QListWidget, QTableWidget {
+    border: 1px solid #BD613C;
+    background:rgb(255, 255, 255);
+    selection-background-color: #BCAF4D;
+    color: #AA1803;
+    font-size: 14pt;
+}
+
+QListWidget::item:selected, QTableWidget::item:selected {
+    background: #BCAF4D;
+    color: white;
+}
+
+/* Метки и заголовки */
+QLabel {
+    color: #AA1803;
+    font-weight: bold;
+    font-size: 14pt;
+}
+
+/* Спинбоксы */
+QDoubleSpinBox {
+    border: 1px solid #BD613C;
+    border-radius: 5px;
+    padding: 3px;
+    background-color: #F1BAA1;
+    color: #AA1803;
+}
