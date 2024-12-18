@@ -10,21 +10,31 @@ CalendarWindow::CalendarWindow(QWidget *parent)
     : QWidget(parent), currentDate(QDate::currentDate()) {
     setWindowTitle("Журнал питания и тренировок");
 
-    // Задаём минимальные и максимальные размеры окна
-    setMinimumSize(640, 360);
+    // Инициализация базы данных
+   if (!openDatabase()) {
+       QMessageBox::critical(this, "Ошибка", "Не удалось подключиться к базе данных.");
+       return;
+   }
 
-    resize(960, 720);
+   // Устанавливаем иконку приложения
+   QIcon appIcon("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/icons/app.png");
+   this->setWindowIcon(appIcon);
 
-    // Загружаем стили из файла styles.qss
-    QFile styleFile("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/styles.qss");
-    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
-        QTextStream stream(&styleFile);
-        QString styleSheet = stream.readAll();
-        this->setStyleSheet(styleSheet);
-        styleFile.close();
-    } else {
-        qDebug() << "Не удалось загрузить файл стилей.";
-    }
+   // Задаём минимальные и максимальные размеры окна
+   setMinimumSize(670, 450);
+
+   resize(960, 720);
+
+   // Загружаем стили из файла styles.qss
+   QFile styleFile("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/styles.qss");
+   if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
+       QTextStream stream(&styleFile);
+       QString styleSheet = stream.readAll();
+       this->setStyleSheet(styleSheet);
+       styleFile.close();
+   } else {
+       qDebug() << "Не удалось загрузить файл стилей.";
+   }
 
     // Основной макет
     mainLayout = new QVBoxLayout(this);
@@ -86,9 +96,8 @@ CalendarWindow::CalendarWindow(QWidget *parent)
     createProgressTab();
     connect(desiredWeightInput, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &CalendarWindow::onDesiredWeightChanged);
 
-    adjustTabWidths();
-
     loadDesiredWeight();
+    adjustTabWidths();
 }
 
 void CalendarWindow::createCalendar() {
@@ -112,7 +121,7 @@ void CalendarWindow::createCalendar() {
         calendarLayout->setRowStretch(i, 1); // Равномерное распределение высоты
     }
     calendarLayout->setSpacing(5);
-    calendarLayout->setContentsMargins(5, 5, 20, 5); // Отступы от краев макета
+    calendarLayout->setContentsMargins(5, 5, 20, 5);
 
     // Создаем кнопки для каждого дня
     for (int day = 1; day <= daysInMonth; ++day) {
@@ -158,96 +167,39 @@ void CalendarWindow::createCalendar() {
 }
 
 bool CalendarWindow::hasTrainingData(const QString &date) {
-    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QSqlQuery query;
+    query.prepare("SELECT COUNT(*) FROM training WHERE date = :date");
+    query.bindValue(":date", date);
+    if (!query.exec()) {
+        qDebug() << query.lastError();
         return false;
     }
-
-    QTextStream in(&file);
-    bool foundTrainingSection = false;
-
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-
-        if (line == "[Training]") {
-            foundTrainingSection = true;
-            continue;
-        }
-
-        if (foundTrainingSection) {
-            if (!line.isEmpty() && line != "[Nutrition]") {
-                file.close();
-                return true;
-            }
-            break;
-        }
-    }
-
-    file.close();
-    return false;
+    query.next();
+    return query.value(0).toInt() > 0;
 }
 
 bool CalendarWindow::hasFoodData(const QString &date) {
-    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QSqlQuery query;
+    query.prepare("SELECT COUNT(*) FROM nutrition WHERE date = :date");
+    query.bindValue(":date", date);
+    if (!query.exec()) {
+        qDebug() << query.lastError();
         return false;
     }
-
-    QTextStream in(&file);
-    bool foundNutritionSection = false;
-
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-
-        if (line == "[Nutrition]") {
-            foundNutritionSection = true;
-            continue;
-        }
-
-        if (foundNutritionSection) {
-            if (!line.isEmpty() && line != "[Weight]") {
-                file.close();
-                return true;
-            }
-            break;
-        }
-    }
-
-    file.close();
-    return false;
+    query.next();
+    return query.value(0).toInt() > 0;
 }
 
 bool CalendarWindow::hasWeightData(const QString &date) {
-    QString filePath = QString("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/%1.txt").arg(date);
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QSqlQuery query;
+    query.prepare("SELECT COUNT(*) FROM weight WHERE date = :date");
+    query.bindValue(":date", date);
+    if (!query.exec()) {
+        qDebug() << query.lastError();
         return false;
     }
-
-    QTextStream in(&file);
-    bool foundNutritionSection = false;
-
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-
-        if (line == "[Weight]") {
-            foundNutritionSection = true;
-            continue;
-        }
-
-        if (foundNutritionSection) {
-            if (line != "0") {
-                file.close();
-                return true;
-            }
-            break;
-        }
-    }
-
-    file.close();
-    return false;
+    query.next();
+    return query.value(0).toInt() > 0;
 }
 
 void CalendarWindow::clearCalendar() {
@@ -339,9 +291,6 @@ void CalendarWindow::createProgressTab() {
             this, &CalendarWindow::onDesiredWeightChanged);
 
     tabWidget->addTab(progressTab, "Прогресс");
-
-    // Загружаем данные о прогрессе
-    loadProgressData();
 }
 
 void CalendarWindow::initWeightChart() {
@@ -384,7 +333,7 @@ void CalendarWindow::initWeightChart() {
     axisY->setLinePenColor(QColor("#BD613C")); // Цвет линии оси Y
     axisY->setGridLineColor(QColor("#BCAF4D")); // Цвет сетки оси Y
     axisY->setLabelFormat("%.1f");
-    axisY->setRange(0, 100); // Изначально ось Y установлена на 0-100 кг
+    axisY->setRange(0, 200); // Изначально ось Y установлена на 0-100 кг
     chart->addAxis(axisY, Qt::AlignLeft);
 
     // Привязываем оси к сериям
@@ -412,120 +361,77 @@ void CalendarWindow::initWeightChart() {
     updateWeightChart();
 }
 
-
 void CalendarWindow::updateWeightChart() {
     weightSeries->clear();
-    desiredWeightSeries->clear();  // Очищаем серию для желаемого веса
+    desiredWeightSeries->clear();  // Clear desired weight series
 
     int selectedYear = yearComboBox->currentData().toInt();
     int selectedMonth = monthComboBox->currentData().toInt();
 
-    QFileInfoList files = QDir("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data").entryInfoList({"*.txt"}, QDir::Files);
+    QSqlQuery query;
+    query.prepare("SELECT date, weight FROM weight WHERE strftime('%Y', date) = :year AND strftime('%m', date) = :month ORDER BY date ASC");  // Добавлено сортировка по дате
+    query.bindValue(":year", QString::number(selectedYear));
+    query.bindValue(":month", QString::number(selectedMonth, 10).rightJustified(2, '0'));
+    if (!query.exec()) {
+        qDebug() << query.lastError();
+        return;
+    }
 
-    int day = 1;
     double minWeight = std::numeric_limits<double>::max();
     double maxWeight = std::numeric_limits<double>::min();
-
-    for (const QFileInfo &fileInfo : files) {
-        QString fileName = fileInfo.baseName(); // Извлекаем имя файла без расширения
-        QDate fileDate = QDate::fromString(fileName, "yyyy-MM-dd");
-
-        if (!fileDate.isValid() || fileDate.year() != selectedYear || fileDate.month() != selectedMonth) {
-            continue; // Пропускаем файлы, которые не относятся к текущему месяцу
-        }
-
-        QFile file(fileInfo.absoluteFilePath());
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            continue;
-        }
-
-        QTextStream in(&file);
-        QString currentSection;
-
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line == "[Weight]") {
-                currentSection = "Weight";
-                continue;
-            }
-
-            if (currentSection == "Weight") {
-                bool ok;
-                double weight = line.toDouble(&ok);
-                if (ok) {
-                    weightSeries->append(fileDate.day(), weight);
-                    minWeight = std::min(minWeight, weight);
-                    maxWeight = std::max(maxWeight, weight);
-                }
-            }
-        }
-        file.close();
+    while (query.next()) {
+        QDate date = QDate::fromString(query.value(0).toString(), "yyyy-MM-dd");
+        double weight = query.value(1).toDouble();
+        weightSeries->append(date.day(), weight);
+        minWeight = std::min(minWeight, weight);
+        maxWeight = std::max(maxWeight, weight);
     }
 
-    // Добавляем серию для желаемого веса
-    if (desiredWeightInput) {
-        double desiredWeight = desiredWeightInput->value();
-        desiredWeightSeries->append(1, desiredWeight);
-        desiredWeightSeries->append(QDate(selectedYear, selectedMonth, 1).daysInMonth(), desiredWeight);
-    }
+    // Добавляем желаемый вес
+    double desiredWeight = desiredWeightInput->value();
+    desiredWeightSeries->append(1, desiredWeight);
+    desiredWeightSeries->append(QDate(selectedYear, selectedMonth, 1).daysInMonth(), desiredWeight);
 
-    // Обновляем ось Y с динамическим диапазоном, включая желаемый вес
+    // Обновляем ось Y с динамическим диапазоном
     QValueAxis *axisY = static_cast<QValueAxis *>(chartView->chart()->axisY(weightSeries));
-    axisY->setRange(std::min(minWeight, desiredWeightInput->value()) - 2, std::max(maxWeight, desiredWeightInput->value()) + 2);
+    axisY->setRange(std::min(minWeight, desiredWeight) - 2, std::max(maxWeight, desiredWeight) + 2);
 
-    // Обновляем ось X с днями месяца
+    // Обновляем ось X, чтобы она отражала дни месяца
     QValueAxis *axisX = static_cast<QValueAxis *>(chartView->chart()->axisX(weightSeries));
     int daysInMonth = QDate(selectedYear, selectedMonth, 1).daysInMonth();
     axisX->setRange(1, daysInMonth);
 }
 
-void CalendarWindow::loadProgressData() {
-    weightSeries->clear();
+bool CalendarWindow::openDatabase() {
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName("data.sqlite");
 
-    // Очищаем данные о весе
-    QFileInfoList files = QDir("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data").entryInfoList({"*.txt"}, QDir::Files);
-
-    int day = 1;
-    double minWeight = std::numeric_limits<double>::max();
-    double maxWeight = std::numeric_limits<double>::min();
-
-    for (const QFileInfo &fileInfo : files) {
-        QFile file(fileInfo.absoluteFilePath());
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            continue;
-        }
-
-        QTextStream in(&file);
-        QString currentSection;
-
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line == "[Weight]") {
-                currentSection = "Weight";
-                continue;
-            }
-
-            if (currentSection == "Weight") {
-                bool ok;
-                double weight = line.toDouble(&ok);
-                if (ok) {
-                    weightSeries->append(day++, weight);
-                    minWeight = std::min(minWeight, weight);
-                    maxWeight = std::max(maxWeight, weight);
-                }
-            }
-        }
-        file.close();
+    if (!db.open()) {
+        qWarning() << "Не удалось подключиться к базе данных:" << db.lastError().text();
+        return false;
     }
 
-    // Обновляем ось Y с динамическим диапазоном
-    QValueAxis *axisY = static_cast<QValueAxis *>(chartView->chart()->axisY(weightSeries));
-    axisY->setRange(minWeight - 2, maxWeight + 2); // Добавляем немного пространства сверху и снизу
+    // Создаем таблицу если она не существует
+    QSqlQuery query;
+    query.exec("CREATE TABLE IF NOT EXISTS weight ("
+               "date TEXT PRIMARY KEY, "
+               "weight REAL, "
+               "dream_weight REAL)");
 
-    // Обновляем ось X с днями месяца
-    QValueAxis *axisX = static_cast<QValueAxis *>(chartView->chart()->axisX(weightSeries));
-    int daysInMonth = QDate(yearComboBox->currentText().toInt(), monthComboBox->currentIndex() + 1, 1).daysInMonth();
-    axisX->setRange(1, daysInMonth);
+    return true;
+}
+
+void CalendarWindow::loadLastWeight() {
+    QSqlQuery query;
+    query.prepare("SELECT weight FROM weight ORDER BY date DESC LIMIT 1");
+
+    if (query.exec() && query.next()) {
+        double lastWeight = query.value(0).toDouble();
+        weightInput->setValue(lastWeight); // Устанавливаем последний вес как значение по умолчанию для поля weight
+    } else {
+        weightInput->setValue(0); // Если данных нет, устанавливаем значение по умолчанию (например, 0)
+    }
 }
 
 void CalendarWindow::onDesiredWeightChanged() {
@@ -534,32 +440,42 @@ void CalendarWindow::onDesiredWeightChanged() {
 }
 
 void CalendarWindow::saveDesiredWeight() {
-    QFile file("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/desired_weight.txt");
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить желаемый вес.");
-        return;
+    double desiredWeight = desiredWeightInput->value();
+
+    // Проверяем, если желаемый вес равен 0, не сохраняем его
+    if (desiredWeight == 0.0) {
+        QMessageBox::warning(this, "Ошибка", "Вес не может быть равен нулю.");
+        return; // Прерываем выполнение, чтобы не добавить запись в базу данных
     }
 
-    QTextStream out(&file);
-    out << desiredWeightInput->value();
-    file.close();
+    // Получаем последний вес из базы данных
+    double lastWeight = 0.0;
+    QSqlQuery query;
+    query.prepare("SELECT weight FROM weight ORDER BY date DESC LIMIT 1");
+    if (query.exec() && query.next()) {
+        lastWeight = query.value(0).toDouble(); // Последний вес
+    }
+
+    // Вставляем желаемый вес и последний вес в таблицу
+    query.prepare("INSERT OR REPLACE INTO weight (date, dream_weight, weight) VALUES (?, ?, ?)");
+    query.addBindValue(QDate::currentDate().toString("yyyy-MM-dd"));
+    query.addBindValue(desiredWeight);
+    query.addBindValue(lastWeight); // Вставляем последний вес
+
+    if (!query.exec()) {
+        QMessageBox::warning(this, "Ошибка", "Не удалось сохранить желаемый вес.");
+    }
 }
 
 void CalendarWindow::loadDesiredWeight() {
-    QFile file("C:/Users/latsu/GitHub_projects/VP2/CalendarToDoApp/data/desired_weight.txt");
-    if (!file.exists()) {
-        return;  // Если файл не существует, значит желаемый вес не был установлен
-    }
+    QSqlQuery query;
+    query.prepare("SELECT dream_weight FROM weight WHERE date = ?");
+    query.addBindValue(QDate::currentDate().toString("yyyy-MM-dd"));
 
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Ошибка", "Не удалось загрузить желаемый вес.");
-        return;
+    if (query.exec() && query.next()) {
+        double savedWeight = query.value(0).toDouble();
+        desiredWeightInput->setValue(savedWeight); // Устанавливаем сохраненный желаемый вес
     }
-
-    QTextStream in(&file);
-    double savedWeight = in.readLine().toDouble();
-    desiredWeightInput->setValue(savedWeight);  // Устанавливаем сохраненный желаемый вес
-    file.close();
 }
 
 void CalendarWindow::adjustTabWidths() {
@@ -578,4 +494,3 @@ void CalendarWindow::adjustTabWidths() {
         tabBar->setMinimumWidth(textWidth);                     // Минимальная ширина
     }
 }
-

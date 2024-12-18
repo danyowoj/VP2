@@ -21,6 +21,8 @@ class CalendarWindow : public QWidget {
 public:
     explicit CalendarWindow(QWidget *parent = nullptr);
 
+    bool openDatabase();
+    void loadLastWeight();
 private:
     QTabWidget *tabWidget;
 
@@ -40,11 +42,12 @@ private:
     QDoubleSpinBox *desiredWeightInput;
     QLabel *desiredWeightLabel;
 
+    QDoubleSpinBox *weightInput;
+
     void createCalendar();
     void createProgressTab();
     void initWeightChart();
     void updateWeightChart();
-    void loadProgressData();
     void loadDesiredWeight();
     void saveDesiredWeight();
 
